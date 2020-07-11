@@ -1,0 +1,75 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: nextcloud
+  labels:
+    app: nextcloud
+spec:
+  ports:
+  - port: 80
+    nodePort: 30001
+  selector:
+    app: nextcloud
+    tier: frontend
+  type: LoadBalancer
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nextcloud-pv-claim
+  labels:
+    app: nextcloud
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nextcloud
+  labels:
+    app: nextcloud
+spec:
+  selector:
+    matchLabels:
+      app: nextcloud
+      tier: frontend
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: nextcloud
+        tier: frontend
+    spec:
+      containers:
+      - image: nextcloud:latest
+        name: nextcloud
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mariadb-pass
+              key: password
+        - name: MYSQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mariadbuser-pass
+              key: password1
+        - name: MYSQL_USER
+          value: deepak
+        - name: MySQL_DATABASE
+          value: mydb
+        ports:
+        - containerPort: 80
+          name: nextcloud
+        volumeMounts:
+        - name: nextcloud-ps
+          mountPath: /var/www/html
+      volumes:
+      - name: nextcloud-ps
+        persistentVolumeClaim:
+          claimName: nextcloud-pv-claim
